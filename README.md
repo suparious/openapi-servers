@@ -1,6 +1,6 @@
 # taylorwilsdon's openapi-servers
 
-This is based on, but includes some that may not be merged in the main #open-webui/openapi-servers repo
+This is based on [open-webui/openapi-servers](https://github.com/open-webui/openapi-servers), but includes some tools that may not be merged in the main repo. Anything merged into main should be considered ready for use. 
 
 This repository provides reference OpenAPI Tool Server implementations making it easy and secure for developers to integrate external tooling and data sources into LLM agents and workflows. Designed for maximum ease of use and minimal learning curve, these implementations utilize the widely adopted and battle-tested [OpenAPI specification](https://www.openapis.org/) as the standard protocol.
 
