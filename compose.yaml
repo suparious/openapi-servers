@@ -4,6 +4,11 @@ services:
       context: ./servers/filesystem
     ports:
       - 8081:8000
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - filesystem-tmp:/tmp
+      - ${HOME}/scratch-space:/scratch-space
+      - ${HOME}/repos:/repos
   memory-server:
     build:
       context: ./servers/memory
@@ -16,6 +21,151 @@ services:
       context: ./servers/time
     ports:
       - 8083:8000
+  summarizer-server:
+    build:
+      context: ./servers/summarizer-tool
+    ports:
+      - 8084:8000
+  weather-server:
+    build:
+      context: ./servers/weather
+    ports:
+      - 8085:8000
+  get-user-info-server:
+    build:
+      context: ./servers/get-user-info
+    # TODO: Fix the constant HTTP error 401.
+    ports:
+      - 8086:8000
+  graphiti-server:
+    build:
+      context: ./servers/graphiti
+    ports:
+      - 8087:8000
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j-server:7687}
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-password}
+      - USE_PARALLEL_RUNTIME=${USE_PARALLEL_RUNTIME:-false}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+
+  neo4j-server:
+    image: neo4j:community
+    restart: always
+    ports:
+      - 7473:7473
+      - 7474:7474
+      - 7687:7687
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    volumes:
+      - ${HOME}/neo4j/logs:/logs
+      - ${HOME}/neo4j/config:/config
+      - ${HOME}/neo4j/data:/data
+      - ${HOME}/neo4j/plugins:/plugins
+
+  pipelines-server:
+    image: ghcr.io/open-webui/pipelines:main
+    restart: always
+    # TODO: Read: https://github.com/Sebulba46/document-RAG-pipeline/tree/main
+    # THis is broken, but I'm not sure why.
+    ports:
+      - 9099:9099
+    volumes:
+      - ${HOME}/scratch-space/open-webui-pipelines:/app/pipelines
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    restart: always
+
+  postgres:
+    image: postgres:16 # Latest is 17, but 16 is the latest stable version
+    restart: always
+    environment:
+      POSTGRES_DB: litellm   # dbadmin is the default user, but we're using litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: dbpassword9090
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+  
+  valkey:
+    image: valkey/valkey:8-alpine # Open source Redis alternative
+    restart: always
+    command: valkey-server --requirepass ${REDIS_PASSWORD:-Password123}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  
+  litellm:
+    build:
+      context: ../litellm
+      args:
+        target: runtime
+    image: ghcr.io/berriai/litellm:main-stable
+    #########################################
+    ## Uncomment these lines to start proxy with a config.yaml file ##
+    # volumes:
+    #  - ./config.yaml:/app/config.yaml <<- this is missing in the docker-compose file currently
+    # command:
+    #  - "--config=/app/config.yaml"
+    ##############################################
+    ports:
+      - "4000:4000" # Map the container port to the host, change the host port if necessary
+    environment:
+      #DATABASE_URL: "postgresql://dbadmin:dbadmin123@postgres:5432/dbadmin"
+      DATABASE_URL: "postgresql://llmproxy:dbpassword9090@postgres:5432/litellm"
+      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+      REDIS_HOST: ${REDIS_HOST:-valkey}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-Password123}
+      # For more: ../litellm/docs/my-website/docs/proxy/config_settings.md
+    env_file:
+      - .env # Load local .env file
+    depends_on:
+      - postgres 
+      - valkey
+    healthcheck:  # Defines the health check configuration for the container
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 http://localhost:4000/health/liveliness || exit 1" ]  # Command to execute for health check
+      interval: 30s  # Perform health check every 30 seconds
+      timeout: 10s   # Health check command times out after 10 seconds
+      retries: 3     # Retry up to 3 times if health check fails
+      start_period: 40s  # Wait 40 seconds after container start before beginning health checks
 
 volumes:
+  filesystem-tmp:
+    driver: local
   memory:
+    driver: local
+  prometheus_data:
+    driver: local
+  postgres_data:
+    name: litellm_postgres_data # Named volume for Postgres data persistence
+  valkey_data:
+    name: litellm_redis_data # Named volume for Redis data persistence
+  
