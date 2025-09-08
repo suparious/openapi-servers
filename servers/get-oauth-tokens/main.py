@@ -32,9 +32,9 @@ async def get_oauth_tokens(request: Request):
     oauth_id_token = cookies.get("oauth_id_token")
     oauth_access_token = None
 
-    auth_header = headers.get("Authorization")
-    if token := auth_header.split(" ")[1]:
-        oauth_access_token = token
+    if headers.get("Authorization"):
+        if token := headers.get("Authorization").split(" ")[1]:
+            oauth_access_token = token
 
     if oauth_id_token is None and oauth_access_token is None:
         raise HTTPException(
