@@ -25,15 +25,13 @@ app.add_middleware(
 async def get_oauth_tokens(request: Request):
     cookies = request.cookies
     oauth_id_token = cookies.get("oauth_id_token")
-    oauth_access_token = cookies.get("oauth_access_token")
 
-    if oauth_id_token is None and oauth_access_token is None:
+    if oauth_id_token is None:
         raise HTTPException(
             status_code=401,
-            detail="Missing oauth_id_token and oauth_access_token cookies",
+            detail="Missing oauth_id_token cookie",
         )
 
     return {
         "oauth_id_token": oauth_id_token,
-        "oauth_access_token": oauth_access_token,
     }
