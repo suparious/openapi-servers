@@ -51,10 +51,12 @@ def flashcard_html(title: str, cards: List[dict], description: str = None) -> st
     <title>{title}</title>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
+        html {{
+            height: 45rem;
+        }}
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
             margin: 0;
             padding: 20px;
             display: flex;
