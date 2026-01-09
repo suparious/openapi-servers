@@ -140,6 +140,40 @@ openapi-servers/
 
 ## 🔧 DEPLOYMENT
 
+### Production (srt-hq-k8s Kubernetes Cluster)
+
+**Status**: ✅ 4 servers deployed to production
+**Registry**: `poseidon.hq.solidrust.net:30008/shaun/openapi-*:latest`
+**Namespace**: `openapi-servers`
+
+**Build & Deploy** (from this repo):
+```bash
+# Build all images for linux/amd64 and push to Gitea
+make build-push-all
+
+# Build single server
+make build-filesystem
+make build-git
+make build-memory
+make build-weather
+
+# Custom tag
+TAG=v1.0.0 make build-push-all
+```
+
+**Deployed Servers**:
+| Server | URL | Replicas |
+|--------|-----|----------|
+| filesystem | https://filesystem.lab.hq.solidrust.net | 2 |
+| git | https://git.lab.hq.solidrust.net | 2 |
+| memory | https://memory.lab.hq.solidrust.net | 1 |
+| weather | https://weather.lab.hq.solidrust.net | 2 |
+
+**Flux Image Automation**: Enabled - images scanned every 5 minutes
+
+**Manifests** (in srt-hq-k8s repo):
+- `manifests/services/openapi/openapi-servers-*/k8s/base/`
+
 ### Local Development
 
 ```bash
@@ -155,7 +189,7 @@ curl http://localhost:8082/docs  # Memory server
 curl http://localhost:8087/docs  # Graphiti server
 ```
 
-### Service Ports
+### Service Ports (Local Development)
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -169,12 +203,6 @@ curl http://localhost:8087/docs  # Graphiti server
 | LiteLLM Proxy | 4000 | Multi-model LLM access |
 | Valkey/Redis | 6379 | Caching |
 | Prometheus | 9090 | Monitoring |
-
-### Production Deployment (TBD)
-
-- Kubernetes manifests not yet created
-- Could integrate with srt-hq-k8s cluster
-- Needs proper secrets management (Sealed Secrets)
 
 ---
 
@@ -193,19 +221,19 @@ curl http://localhost:8087/docs  # Graphiti server
 
 ## 🔗 INTEGRATION WITH SOLIDRUST ECOSYSTEM
 
-**Connections**:
+**Active Integrations**:
+- **srt-hq-k8s**: ✅ Deployed (4 servers in openapi-servers namespace)
 - **srt-hq-vllm**: LLM backend for agents calling these tools
-- **srt-hq-k8s**: Potential deployment platform
-- **srt-hq-monitoring-stack**: Prometheus integration for observability
+- **Flux Image Automation**: ✅ Images scanned from Gitea registry
 - **SolidRusT.net**: MCP WebSocket bridge demonstrates tool integration
 
-**Future Integration**:
-- Deploy on srt-hq-k8s cluster (alongside vLLM)
+**Future Work**:
 - Expose via Artemis proxy (public tool APIs)
 - Integrate with PAM platform (auth for tool access)
 - Monitoring via Grafana (tool usage dashboards)
+- Deploy additional servers (graphiti, sql-chat)
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: November 11, 2025
+**Document Version**: 1.1
+**Last Updated**: January 9, 2026
