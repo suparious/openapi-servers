@@ -53,25 +53,27 @@ login:
 	@echo "Note: Use your Gitea token as the password"
 	docker login $(REGISTRY)
 
-# Build targets
+# Build targets (using buildx for cross-platform - K8s nodes are amd64)
+PLATFORM ?= linux/amd64
+
 build-all: $(addprefix build-,$(SERVERS))
-	@echo "✅ All images built"
+	@echo "✅ All images built for $(PLATFORM)"
 
 build-filesystem:
-	@echo "Building filesystem server..."
-	docker build -t $(REGISTRY)/$(OWNER)/openapi-filesystem:$(TAG) servers/filesystem/
+	@echo "Building filesystem server for $(PLATFORM)..."
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-filesystem:$(TAG) servers/filesystem/ --load
 
 build-git:
-	@echo "Building git server..."
-	docker build -t $(REGISTRY)/$(OWNER)/openapi-git:$(TAG) servers/git/
+	@echo "Building git server for $(PLATFORM)..."
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-git:$(TAG) servers/git/ --load
 
 build-memory:
-	@echo "Building memory server..."
-	docker build -t $(REGISTRY)/$(OWNER)/openapi-memory:$(TAG) servers/memory/
+	@echo "Building memory server for $(PLATFORM)..."
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-memory:$(TAG) servers/memory/ --load
 
 build-weather:
-	@echo "Building weather server..."
-	docker build -t $(REGISTRY)/$(OWNER)/openapi-weather:$(TAG) servers/weather/
+	@echo "Building weather server for $(PLATFORM)..."
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-weather:$(TAG) servers/weather/ --load
 
 # Push targets
 push-all: $(addprefix push-,$(SERVERS))
@@ -93,9 +95,14 @@ push-weather:
 	@echo "Pushing weather server..."
 	docker push $(REGISTRY)/$(OWNER)/openapi-weather:$(TAG)
 
-# Combined build and push
-build-push-all: build-all push-all
-	@echo "✅ All images built and pushed"
+# Combined build and push (uses buildx --push for efficiency)
+build-push-all:
+	@echo "Building and pushing all servers to $(REGISTRY)..."
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-filesystem:$(TAG) servers/filesystem/ --push
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-git:$(TAG) servers/git/ --push
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-memory:$(TAG) servers/memory/ --push
+	docker buildx build --platform $(PLATFORM) -t $(REGISTRY)/$(OWNER)/openapi-weather:$(TAG) servers/weather/ --push
+	@echo "✅ All images built and pushed to $(REGISTRY)"
 
 # Clean local images
 clean:
